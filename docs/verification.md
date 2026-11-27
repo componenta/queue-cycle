@@ -20,8 +20,12 @@ The test environment used PHP 8.5.13, Pest 4.7.8 and PHPUnit 12.5.33. Its isolat
 database server was stopped after completion. The same suite previously passed
 on PostgreSQL 16.16, 17.12 and 18.7 in
 [core CI run 46007356923](https://github.com/componenta/queue/actions/runs/46007356923).
-The standalone workflow runs its own PostgreSQL 16/17/18 matrix; configuration
-alone is not proof of that new run's result.
+The standalone [Actions run 46010762517](https://github.com/componenta/queue-cycle/actions/runs/46010762517)
+passed for commit `b902fb770c0814883c87069f61e2de121fa7a448`. Its actual logs
+confirmed PostgreSQL **16.16, 17.12 and 18.7**; every job passed **56 tests /
+262 assertions**, strict Composer validation, maximum-level PHPStan and PSR-12
+checks. This confirmation applies to the independent package and its separate
+Composer installation.
 
 ## Behavioral evidence
 
