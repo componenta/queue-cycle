@@ -27,6 +27,26 @@ confirmed PostgreSQL **16.16, 17.12 and 18.7**; every job passed **56 tests /
 checks. This confirmation applies to the independent package and its separate
 Composer installation.
 
+## Follow-up audit
+
+The complete standalone suite passed **60 tests / 281 assertions** on PostgreSQL
+17.12 after two additional defects were reproduced and fixed. PHPStan maximum
+level and PSR-12 checks also passed.
+
+- `ConfigurationTest.php` first reproduced failed timestamp reads under
+  `DateStyle = 'SQL, DMY'`. It now verifies microsecond-preserving delivery
+  metadata, renewal, acknowledgment, restoration after commit and rollback, and
+  unchanged settings during caller-owned staging. ISO/YMD is selected locally
+  in the existing transaction-settings query, without an extra round trip.
+- `PostgresQueueTest.php` first reproduced NUL parameter truncation in find,
+  redrive and discard. An ID containing NUL cannot exist in PostgreSQL text and
+  now follows the not-found contract. Negative controls preserve the original
+  pending record; positive controls still redrive or discard its exact ID.
+
+These checks exercise public ports against real PostgreSQL. The earlier 56-test
+CI and workload records above and below remain historical measurements of their
+identified source snapshots.
+
 ## Behavioral evidence
 
 Tests exercise public publisher, receiver, delivery, lease and administration

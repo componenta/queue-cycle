@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: componenta/queue
-          ref: 992ef65eed8aaaed159a997064b3a3942f9cbdc0
+          ref: 906f510688bbc7b1fabd2e4ef23c0f1130fe015b
           path: componenta-queue
       - uses: shivammathur/setup-php@v2
         with:

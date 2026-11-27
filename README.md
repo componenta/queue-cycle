@@ -190,6 +190,10 @@ transaction. Failure pages contain summaries, not bodies, and use opaque cursors
 bound to the destination, installation and status filter. `find()` retrieves the
 raw snapshot and diagnostic details. There is no automatic re-enqueue operation.
 
+Failure IDs are matched exactly. An ID containing NUL cannot exist in this
+PostgreSQL profile: `find()` returns `null`, while `redrive()` and `discard()`
+throw `FailureNotFoundException`. It never addresses a truncated prefix.
+
 Redrive creates one new processing generation in the same ledger incarnation,
 with the same logical ID and raw original. Repeating the same failure ID and delay
 is idempotent while that history record remains. Different delay parameters or
@@ -229,6 +233,11 @@ make arbitrary remote handler effects exactly once, and two separately configure
 connections to the same database do not share a transaction.
 
 ## I/O limits and uncertain outcomes
+
+Adapter-owned transactions select `DateStyle = 'ISO, YMD'` locally so PostgreSQL
+timestamp results remain unambiguous and preserve microseconds. Commit or rollback
+restores the borrowed session's original setting. Transactional staging keeps the
+caller's DateStyle unchanged and uses explicitly formatted timestamp expressions.
 
 `ioTimeoutMilliseconds` applies PostgreSQL `statement_timeout` and `lock_timeout`
 inside adapter-owned transactions only. These bound server-side statements and
