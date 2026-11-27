@@ -48,7 +48,8 @@ final class Connection
             if (!$begun) {
                 throw new \RuntimeException('The database declined to begin a transaction.');
             }
-            $this->row("SELECT set_config('statement_timeout', :timeout, true), set_config('lock_timeout', :lock_timeout, true)", [
+            $this->row("SELECT set_config('statement_timeout', :timeout, true), set_config('lock_timeout', :lock_timeout, true),
+                set_config('DateStyle', 'ISO, YMD', true)", [
                 'timeout' => $this->timeoutMilliseconds . 'ms',
                 'lock_timeout' => $this->timeoutMilliseconds . 'ms',
             ]);

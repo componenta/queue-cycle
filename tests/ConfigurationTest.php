@@ -55,6 +55,33 @@ it('rejects non-UTF8 connection configuration before consuming and works after c
     expect($queue->receiver()->receive()->metadata()->deliveryCount)->toBe(1);
 });
 
+it('reads timestamps independently of session DateStyle without changing the borrowed session', function (): void {
+    $queue = $this->fixture->queue();
+    $this->fixture->execute("SET DateStyle TO 'SQL, DMY'");
+    $queue->publisher()->publish($this->fixture->message());
+    // A fixed past availability makes an ambiguous/non-ISO date visible on every test day.
+    $this->fixture->execute('UPDATE ' . $this->fixture->table() . " SET available_at = '2000-01-13 12:34:56.123456+00'::timestamptz");
+    $receiver = $queue->receiver();
+
+    $delivery = $receiver->receive();
+    expect($delivery)->not->toBeNull();
+    $stored = $this->fixture->row('SELECT to_char(received_at AT TIME ZONE \'UTC\', \'YYYY-MM-DD HH24:MI:SS.US\') AS received FROM ' . $this->fixture->table());
+    expect($delivery->metadata()->receivedAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u'))->toBe($stored['received']);
+    expect($delivery->lease()->renew(5_000)->expiresAt)->toBeGreaterThan($delivery->metadata()->receivedAt);
+    $delivery->acknowledge();
+    expect($this->fixture->row("SELECT current_setting('DateStyle') AS style")['style'])->toBe('SQL, DMY');
+    expect(fn () => $queue->publisher()->publish($this->fixture->message(body: 'conflicting original')))
+        ->toThrow(MessageConflictException::class);
+    expect($this->fixture->row("SELECT current_setting('DateStyle') AS style")['style'])->toBe('SQL, DMY');
+
+    $writer = $this->fixture->database->getDriver(DatabaseInterface::WRITE);
+    $writer->beginTransaction();
+    $queue->transactionalPublisher()->stage($this->fixture->message('staged'));
+    expect($this->fixture->row("SELECT current_setting('DateStyle') AS style")['style'])->toBe('SQL, DMY');
+    $writer->rollbackTransaction();
+    expect($receiver->receive())->toBeNull();
+});
+
 it('rejects a readonly driver before acquiring anything', function (): void {
     $readonly = PostgresDriver::create(new PostgresDriverConfig(
         connection: new DsnConnectionConfig(dsn: (string) getenv('QUEUE_TEST_DSN'), user: (string) (getenv('QUEUE_TEST_USER') ?: 'queue_test')),
