@@ -169,6 +169,10 @@ final readonly class Store
     public function find(string $id): ?FailedMessage
     {
         return $this->connection->transaction(function () use ($id): ?FailedMessage {
+            // PostgreSQL text cannot contain NUL; PDO must not alias it to an existing prefix.
+            if (str_contains($id, "\0")) {
+                return null;
+            }
             $table = $this->failures();
             $row = $this->connection->row("SELECT * FROM $table WHERE queue_name = :queue AND failure_id = :id", ['queue' => $this->config->queue, 'id' => $id]);
             return $row === null ? null : new FailedMessage($this->summary($row), self::raw($row), $this->metadata($row), new FailureDetails(FailureReason::from($row->string('reason')), $row->nullableString('exception_type'), $row->nullableString('description')));
@@ -376,6 +380,9 @@ final readonly class Store
     /** @return array{?Row,Row} */
     private function administrativeRows(string $id): array
     {
+        if (str_contains($id, "\0")) {
+            throw new FailureNotFoundException('The failure record does not exist in this queue.');
+        }
         $failures = $this->failures();
         $lookup = $this->connection->row("SELECT ledger_id FROM $failures WHERE queue_name = :queue AND failure_id = :id", ['queue' => $this->config->queue, 'id' => $id]);
         $ledger = null;

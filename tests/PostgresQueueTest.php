@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Componenta\Queue\Exception\MessageConflictException;
+use Componenta\Queue\Exception\FailureNotFoundException;
 use Componenta\Queue\FailureDetails;
 use Componenta\Queue\FailureQuery;
 use Componenta\Queue\FailureReason;
@@ -61,3 +62,24 @@ it('redrives a failed message once and preserves the resolved history', function
     $next->acknowledge();
     expect($receiver->receive())->toBeNull();
 });
+
+it('does not address an existing failure through a NUL-suffixed identifier', function (string $operation): void {
+    $queue = $this->fixture->queue();
+    $queue->publisher()->publish($this->fixture->message());
+    $queue->receiver()->receive()->fail(new FailureDetails(FailureReason::Handler));
+    $store = $queue->failures();
+    $id = $store->page(new FailureQuery(1))->items[0]->failureId;
+    $differentId = $id . "\0different";
+
+    if ($operation === 'find') {
+        expect($store->find($differentId))->toBeNull();
+    } else {
+        expect(fn () => $store->{$operation}($differentId))->toThrow(FailureNotFoundException::class);
+    }
+    expect($store->find($id)->summary->status)->toBe(FailureStatus::Pending)
+        ->and($queue->receiver()->receive())->toBeNull();
+    if ($operation !== 'find') {
+        $store->{$operation}($id);
+        expect($store->find($id)->summary->status)->toBe($operation === 'redrive' ? FailureStatus::Redriven : FailureStatus::Discarded);
+    }
+})->with(['find', 'redrive', 'discard']);
