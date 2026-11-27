@@ -69,6 +69,11 @@ final class Delivery implements DeliveryInterface
         }
     }
 
+    /** Its token, local state and completion callback belong to one capability. */
+    private function __clone(): void
+    {
+    }
+
     /**
      * @template T
      * @param \Closure():T $operation

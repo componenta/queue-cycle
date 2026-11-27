@@ -120,6 +120,12 @@ capabilities, prevents another receive, and leaves active work to expire. It doe
 not acknowledge that work or disconnect the borrowed application driver. Normal
 shutdown should finish the in-flight handler before closing the receiver.
 
+Receiver and delivery objects cannot be cloned. They own a consumption session
+or reservation lifecycle; copying only part of that state would detach it from
+the original completion callbacks. Obtain another receiver from the queue when
+an independent session is needed. Immutable message and metadata snapshots
+remain ordinary values.
+
 Raw bytes and string headers are acquired before codec decoding. A malformed
 envelope can therefore be captured in the failed-message store without invoking
 a handler. The raw original is preserved through retry, failure and redrive.

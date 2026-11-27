@@ -67,4 +67,9 @@ final class Receiver implements ReceiverInterface
         $this->outstanding = null;
         // The DatabaseInterface/driver was injected; the session does not own that connection.
     }
+
+    /** A consumption session cannot be copied with partially shared ownership. */
+    private function __clone(): void
+    {
+    }
 }

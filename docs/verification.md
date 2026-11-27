@@ -47,6 +47,21 @@ These checks exercise public ports against real PostgreSQL. The earlier 56-test
 CI and workload records above and below remain historical measurements of their
 identified source snapshots.
 
+## Capability-copy audit
+
+The next public PostgreSQL probe reproduced a cloned delivery acknowledging its
+reservation after the original receiver had closed. Its copied mutable state
+was detached from the session's completion callback. Receiver and delivery
+objects now reject cloning so a partially copied resource cannot acquire a
+second local lifecycle.
+
+The two new ownership cases first failed because cloning succeeded. After the
+fix they both reject cloning, retain successful acknowledgment through the
+original delivery, and reject renewal of its completed lease. The complete suite
+passed **62 tests / 287 assertions** on PostgreSQL 17.12, with maximum-level
+PHPStan and PSR-12 checks passing. This changes resource ownership behavior, not
+the SQL protocol; earlier workload measurements retain their original scope.
+
 ## Behavioral evidence
 
 Tests exercise public publisher, receiver, delivery, lease and administration

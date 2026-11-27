@@ -4,12 +4,26 @@ declare(strict_types=1);
 
 use Componenta\Queue\Cycle\Tests\Support\Process;
 use Componenta\Queue\Exception\DeliveryLostException;
+use Componenta\Queue\Exception\DeliveryStateException;
 use Componenta\Queue\Exception\ReceiverClosedException;
 use Componenta\Queue\FailureDetails;
 use Componenta\Queue\FailureQuery;
 use Componenta\Queue\FailureReason;
 use Cycle\Database\DatabaseInterface;
 use Cycle\Database\Injection\Parameter;
+
+it('does not duplicate active resource capabilities by cloning', function (string $kind): void {
+    $queue = $this->fixture->queue();
+    $queue->publisher()->publish($this->fixture->message());
+    $receiver = $queue->receiver();
+    $delivery = $receiver->receive();
+    $capability = $kind === 'receiver' ? $receiver : $delivery;
+
+    expect(fn () => clone $capability)->toThrow(Error::class);
+    $delivery->acknowledge();
+    expect($receiver->receive())->toBeNull();
+    expect(fn () => $delivery->lease()->renew(1_000))->toThrow(DeliveryStateException::class);
+})->with(['receiver', 'delivery']);
 
 it('reserves the next unlocked row using another physical connection', function (): void {
     $queue = $this->fixture->queue();
