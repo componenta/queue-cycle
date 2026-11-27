@@ -17,9 +17,10 @@ final class Schema
             if ($sql === false) {
                 throw new \RuntimeException('The packaged queue schema could not be read.');
             }
-            $sql = str_replace(['{{ledger}}', '{{failures}}'], [$connection->table('queue_messages'), $connection->table('queue_failures')], $sql);
+            // Split the bundled template before identifiers can introduce quoted semicolons.
             foreach (explode(';', $sql) as $statement) {
                 if (trim($statement) !== '') {
+                    $statement = strtr($statement, ['{{ledger}}' => $connection->table('queue_messages'), '{{failures}}' => $connection->table('queue_failures')]);
                     $connection->execute($statement);
                 }
             }

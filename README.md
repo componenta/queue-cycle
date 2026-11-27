@@ -81,8 +81,12 @@ Identity comparisons use exact bytes under PostgreSQL's `C` collation; no case
 folding or Unicode normalization occurs.
 
 `Schema::install()` is intentionally explicit and fails if these tables already
-exist. It does not silently migrate or replace an installed store. The template
-in `resources/schema.sql` defines two tables and their indexes. Installation also
+exist. It does not silently migrate or replace an installed store. Valid quoted
+schema names, including embedded double quotes and semicolons, are preserved.
+Installation uses a single transaction. A confirmed rollback removes newly
+created objects and preserves existing ones; an indeterminate outcome requires
+checking the database before retrying. The template in `resources/schema.sql`
+defines two tables and their indexes. Installation also
 sets the adapter-owned table comment
 `componenta.queue.failure-store.v1:<installation-id>` on `queue_failures`.
 Preserve this marker when migrating the same store. A fresh installation receives
