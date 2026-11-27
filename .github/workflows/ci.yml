@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: ['16', '17', '18']
+        postgres: ['16', '17', '18', '19']
     services:
       postgres:
         image: postgres:${{ matrix.postgres }}
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: componenta/queue
-          ref: b8c08bb895d6a001cea927fbb050fbf31d04c48b
+          ref: ea9a01a0d045c1b89242eacb9151c48d283d712b
           path: componenta-queue
       - uses: shivammathur/setup-php@v2
         with:
