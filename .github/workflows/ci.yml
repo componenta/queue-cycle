@@ -1,0 +1,59 @@
+name: Queue PostgreSQL checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres: ['16', '17', '18']
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: queue_test
+          POSTGRES_PASSWORD: queue_test
+          POSTGRES_DB: queue_conformance
+          POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U queue_test -d queue_conformance"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      QUEUE_TEST_DSN: 'pgsql:host=127.0.0.1;port=5432;dbname=queue_conformance;connect_timeout=5'
+      QUEUE_TEST_USER: queue_test
+      QUEUE_TEST_PASSWORD: queue_test
+      COMPOSER: composer.dev.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: queue-cycle
+      - uses: actions/checkout@v4
+        with:
+          repository: componenta/queue
+          ref: 992ef65eed8aaaed159a997064b3a3942f9cbdc0
+          path: componenta-queue
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5.13'
+          extensions: json, mbstring, dom, xml, xmlwriter, pdo_pgsql, pcntl
+          coverage: none
+          tools: composer:v2
+      - run: php tools/development.php ../componenta-queue
+        working-directory: queue-cycle
+      - run: composer update --no-interaction --prefer-dist --no-progress
+        working-directory: queue-cycle
+      - run: COMPOSER=composer.json composer validate --strict
+        working-directory: queue-cycle
+      - run: composer check
+        working-directory: queue-cycle
