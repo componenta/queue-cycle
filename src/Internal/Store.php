@@ -278,10 +278,18 @@ final readonly class Store
             $bound = Connection::format($this->connection->now());
             // Acquire every ledger lock before any failure lock. Resolved history can
             // expire while a later generation is active and must not stall cleanup.
+            // The independent indexed guard skips live/future ledgers when no
+            // work is due. The ordered scan still stops early for a due backlog.
             $ledgers = $this->connection->rows("SELECT m.row_id, m.state, m.dedup_until, m.current_failure_id FROM $table AS m
-                WHERE m.queue_name = :queue AND ((m.state IN ('completed', 'discarded') AND m.dedup_until <= :terminal_bound)
-                    OR EXISTS (SELECT 1 FROM $failures AS f WHERE f.ledger_id = m.row_id AND f.status <> 'pending' AND f.retained_until <= :history_bound))
+                WHERE (EXISTS (SELECT 1 FROM $table AS due_m WHERE due_m.queue_name = :terminal_guard_queue
+                        AND due_m.state IN ('completed', 'discarded') AND due_m.dedup_until <= :terminal_guard_bound)
+                    OR EXISTS (SELECT 1 FROM $failures AS due_f WHERE due_f.queue_name = :history_guard_queue
+                        AND due_f.ledger_id IS NOT NULL AND due_f.status <> 'pending' AND due_f.retained_until <= :history_guard_bound))
+                    AND m.queue_name = :queue AND ((m.state IN ('completed', 'discarded') AND m.dedup_until <= :terminal_bound)
+                        OR EXISTS (SELECT 1 FROM $failures AS f WHERE f.ledger_id = m.row_id AND f.status <> 'pending' AND f.retained_until <= :history_bound))
                 ORDER BY m.row_id LIMIT :limit FOR UPDATE OF m SKIP LOCKED", [
+                'terminal_guard_queue' => $this->config->queue, 'history_guard_queue' => $this->config->queue,
+                'terminal_guard_bound' => $bound, 'history_guard_bound' => $bound,
                 'queue' => $this->config->queue, 'terminal_bound' => $bound, 'history_bound' => $bound, 'limit' => $limit,
             ]);
             foreach ($ledgers as $ledger) {
